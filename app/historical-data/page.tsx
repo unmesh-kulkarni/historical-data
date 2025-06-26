@@ -137,7 +137,7 @@ export default function HistoricalDataPage() {
                 let processedData = []
 
                 if (Array.isArray(data.data)) {
-                    processedData = data.data.map((item: any) => ({
+                    processedData = data.data.slice(0,5).map((item: any) => ({
                         datetime: item.datetime || item.timestamp || item.time || new Date().toISOString(),
                         open: Number.parseFloat(item.open || item.o || 0),
                         high: Number.parseFloat(item.high || item.h || 0),
