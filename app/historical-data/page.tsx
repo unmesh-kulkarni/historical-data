@@ -24,12 +24,13 @@ interface HistoricalDataParams {
 }
 
 interface HistoricalDataPoint {
-    datetime: string
-    open: number
-    high: number
-    low: number
-    close: number
-    volume: number
+    datetime: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    open_interest: number;
 }
 
 interface ApiResponse {
@@ -41,14 +42,14 @@ interface ApiResponse {
 export default function HistoricalDataPage() {
     const [params, setParams] = useState<HistoricalDataParams>({
         interval: "1minute",
-        fromDate: "2025-02-03T09:20:00.000Z",
-        toDate: "2025-02-03T09:21:00.000Z",
+        fromDate: "2025-01-01T09:15:00.000Z",
+        toDate: "2025-01-01T09:16:00.000Z",
         stockCode: "NIFTY",
         exchangeCode: "NFO",
         productType: "options",
-        expiryDate: "2025-02-06T07:00:00.000Z",
+        expiryDate: "2025-01-02T09:15:00.000Z",
         right: "call",
-        strikePrice: "23200",
+        strikePrice: "23500",
     })
 
     const [isLoading, setIsLoading] = useState(false)
@@ -100,13 +101,24 @@ export default function HistoricalDataPage() {
         setResponse(null)
 
         try {
+            console.log("Sending request with params:", {
+                interval: params.interval,
+                from_date: params.fromDate,
+                to_date: params.toDate,
+                stock_code: params.stockCode,
+                exchange_code: params.exchangeCode,
+                product_type: params.productType,
+                expiry_date: params.expiryDate,
+                right: params.right,
+                strike_price: params.strikePrice,
+            })
             const response = await fetch("http://localhost:8000/historical", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    interval: params.interval ?? '',
+                    interval: params.interval,
                     from_date: params.fromDate,
                     to_date: params.toDate,
                     stock_code: params.stockCode,
@@ -119,20 +131,37 @@ export default function HistoricalDataPage() {
             })
 
             const data = await response.json()
+            console.log("🔍 API Response Sample:", data.data?.[0]);
+            if (response.ok && data.success) {
+                // Handle different possible data structures from BreezeConnect
+                let processedData = []
 
-            if (response.ok) {
+                if (Array.isArray(data.data)) {
+                    processedData = data.data.map((item: any) => ({
+                        datetime: item.datetime || item.timestamp || item.time || new Date().toISOString(),
+                        open: Number.parseFloat(item.open || item.o || 0),
+                        high: Number.parseFloat(item.high || item.h || 0),
+                        low: Number.parseFloat(item.low || item.l || 0),
+                        close: Number.parseFloat(item.close || item.c || 0),
+                        volume: Number.parseInt(item.volume || item.vol || item.v || 0),
+                        open_interest: Number.parseInt(item.open_interest || item.oi || 0),
+                    }))
+                }
+
+                console.log("Processed Data:", processedData)
                 setResponse({
                     success: true,
-                    data: data.data || [],
-                    message: `Retrieved ${data.data?.length || 0} data points`,
+                    data: processedData,
+                    message: `Retrieved ${processedData.length} data points for Strike Price ${params.strikePrice}`,
                 })
             } else {
                 setResponse({
                     success: false,
-                    message: data.message || "Failed to fetch historical data",
+                    message: data.detail || data.message || "Failed to fetch historical data",
                 })
             }
         } catch (error) {
+            console.error("Network Error:", error)
             setResponse({
                 success: false,
                 message: "Network error. Please check your connection and try again.",
@@ -171,7 +200,7 @@ export default function HistoricalDataPage() {
                         </Button>
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Historical Data</h1>
-                            <p className="text-gray-600">Fetch ICICI Direct BreezeConnect historical market data</p>
+                            <p className="text-gray-600">Fetch historical market data</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -199,6 +228,7 @@ export default function HistoricalDataPage() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="1second">1 Second</SelectItem>
                                             <SelectItem value="1minute">1 Minute</SelectItem>
                                             <SelectItem value="5minute">5 Minutes</SelectItem>
                                             <SelectItem value="30minute">30 Minutes</SelectItem>
@@ -317,18 +347,20 @@ export default function HistoricalDataPage() {
                                             {errors.expiryDate && <p className="text-sm text-red-600">{errors.expiryDate}</p>}
                                         </div>
 
-                                        {params.exchangeCode === 'NFO' && <div className="space-y-2">
-                                            <Label htmlFor="right">Option Type</Label>
-                                            <Select value={params.right} onValueChange={(value) => handleInputChange("right", value)}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="call">Call</SelectItem>
-                                                    <SelectItem value="put">Put</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>}
+                                        {params.exchangeCode === "NFO" && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="right">Option Type</Label>
+                                                <Select value={params.right} onValueChange={(value) => handleInputChange("right", value)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="call">Call</SelectItem>
+                                                        <SelectItem value="put">Put</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
 
                                         <div className="space-y-2">
                                             <Label htmlFor="strikePrice">Strike Price</Label>
@@ -388,7 +420,6 @@ export default function HistoricalDataPage() {
                                         </div>
                                     </Alert>
                                 )}
-
                                 {response?.success && response.data && response.data.length > 0 ? (
                                     <div className="space-y-4">
                                         {/* Summary */}
@@ -401,34 +432,43 @@ export default function HistoricalDataPage() {
                                         <Separator />
 
                                         {/* Data Table */}
+                                        {/* Data Table */}
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="border-b">
-                                                        <th className="text-left p-2">DateTime</th>
+                                                        <th className="text-left p-2">Date</th>
+                                                        <th className="text-left p-2">Time</th>
                                                         <th className="text-right p-2">Open</th>
                                                         <th className="text-right p-2">High</th>
                                                         <th className="text-right p-2">Low</th>
                                                         <th className="text-right p-2">Close</th>
                                                         <th className="text-right p-2">Volume</th>
+                                                        <th className="text-left p-2">Open Interest</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {response.data.map((point, index) => (
-                                                        <tr key={index} className="border-b hover:bg-gray-50">
-                                                            <td className="p-2 font-mono text-xs">{formatDateTime(point.datetime)}</td>
-                                                            <td className="p-2 text-right font-mono">{formatCurrency(point.open)}</td>
-                                                            <td className="p-2 text-right font-mono text-green-600">{formatCurrency(point.high)}</td>
-                                                            <td className="p-2 text-right font-mono text-red-600">{formatCurrency(point.low)}</td>
-                                                            <td className="p-2 text-right font-mono font-semibold">{formatCurrency(point.close)}</td>
-                                                            <td className="p-2 text-right font-mono text-gray-600">
-                                                                {point.volume.toLocaleString()}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                    {response.data.map((point, index) => {
+                                                        const [date, time] = point.datetime.split(" ");
+                                                        return (
+                                                            <tr key={index} className="border-b hover:bg-gray-50">
+                                                                <td className="p-2 font-mono text-xs">{date}</td>
+                                                                <td className="p-2 font-mono text-xs">{time}</td>
+                                                                <td className="p-2 text-right font-mono">{formatCurrency(point.open)}</td>
+                                                                <td className="p-2 text-right font-mono text-green-600">{formatCurrency(point.high)}</td>
+                                                                <td className="p-2 text-right font-mono text-red-600">{formatCurrency(point.low)}</td>
+                                                                <td className="p-2 text-right font-mono font-semibold">{formatCurrency(point.close)}</td>
+                                                                <td className="p-2 text-right font-mono text-gray-600">
+                                                                    {point.volume.toLocaleString()}</td>
+                                                                <td className="p-2 font-mono text-xs text-gray-800">
+                                                                    {point.open_interest.toLocaleString()}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
+
                                     </div>
                                 ) : (
                                     !isLoading && (

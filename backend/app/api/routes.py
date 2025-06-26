@@ -24,8 +24,6 @@ def init_session(data: InitSessionRequest):
         return {"success": True, "message": message}
     raise HTTPException(status_code=400, detail=message)
 
-
-
 class HistoricalDataRequest(BaseModel):
     interval: str
     from_date: str
@@ -54,12 +52,6 @@ def get_historical_data(data: HistoricalDataRequest):
             right=data.right,
             strike_price=data.strike_price
         )
-        return {"success": True, "data": response}
+        return {"success": True, "data": response.get("Success", [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
-    
-@router.get("/greet")
-def greet(name: str = "User"):
-
-    return {"message": f"Hello, {name}!"}
