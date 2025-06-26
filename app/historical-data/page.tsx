@@ -112,7 +112,7 @@ export default function HistoricalDataPage() {
                 right: params.right,
                 strike_price: params.strikePrice,
             })
-            const response = await fetch("http://localhost:8000/historical", {
+            const response = await fetch("api/historical", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -71,7 +71,7 @@ export default function TradingApp() {
     setResponse(null)
 
     try {
-      const response = await fetch("http://localhost:8000/init-session", {
+      const response = await fetch("/api/init-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
